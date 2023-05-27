@@ -6,10 +6,10 @@ Subject: [PATCH] Use ASM for event executors.
 Uses method handles for private or static methods.
 
 diff --git a/build.gradle.kts b/build.gradle.kts
-index b649f81d11c043649fa3e6e65ebd5dd70d2e9469..df783fda358889a23e9219b364181c626ff3dfea 100644
+index 3979d4430cafdd3374fc21d312aa079a44c3f935..e2bf255c5c9e7fb7f31232782fed110ef55e2418 100644
 --- a/build.gradle.kts
 +++ b/build.gradle.kts
-@@ -42,6 +42,9 @@ dependencies {
+@@ -43,6 +43,9 @@ dependencies {
      apiAndDocs("net.kyori:adventure-text-serializer-legacy")
      apiAndDocs("net.kyori:adventure-text-serializer-plain")
      apiAndDocs("net.kyori:adventure-text-logger-slf4j")
