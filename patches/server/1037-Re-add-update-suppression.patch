@@ -1,0 +1,75 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Rob Hayes <rob@kdei.co.uk>
+Date: Mon, 6 Nov 2023 20:07:51 +0000
+Subject: [PATCH] Re-add update suppression
+
+
+diff --git a/src/main/java/me/LIMPIX31/paperutils/SuppressedThrowable.java b/src/main/java/me/LIMPIX31/paperutils/SuppressedThrowable.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..35389434e8dbd31d20e1d0a946e82bc21e758a5c
+--- /dev/null
++++ b/src/main/java/me/LIMPIX31/paperutils/SuppressedThrowable.java
+@@ -0,0 +1,7 @@
++package me.LIMPIX31.paperutils;
++
++public class SuppressedThrowable extends RuntimeException {
++    public SuppressedThrowable(String reason) {
++        super(reason);
++    }
++}
+diff --git a/src/main/java/net/minecraft/network/protocol/PacketUtils.java b/src/main/java/net/minecraft/network/protocol/PacketUtils.java
+index d2f0a0755317f5fa9a1ccf7db346aa77fd287d80..b1f2faa118e563c4513a485652ef966e6ab05159 100644
+--- a/src/main/java/net/minecraft/network/protocol/PacketUtils.java
++++ b/src/main/java/net/minecraft/network/protocol/PacketUtils.java
+@@ -50,6 +50,11 @@ public class PacketUtils {
+                     try (co.aikar.timings.Timing ignored = timing.startTiming()) { // Paper - timings
+                         packet.handle(listener);
+                     } catch (Exception exception) {
++                        if(exception instanceof me.LIMPIX31.paperutils.SuppressedThrowable
++                            || (exception instanceof net.minecraft.ReportedException
++                                    && exception.getCause() instanceof me.LIMPIX31.paperutils.SuppressedThrowable)) {
++                            return;
++                        }
+                         if (listener.shouldPropagateHandlingExceptions()) {
+                             throw exception;
+                         }
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index 67ee3a4ca8a6cdeb275653d492a1fea8037c51fb..7740b11581664b533ae142ebb72e67cfd6939f05 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -1553,7 +1553,17 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+ 
+             try {
+                 worldserver.timings.doTick.startTiming(); // Spigot
+-                worldserver.tick(shouldKeepTicking);
++                try {
++                    worldserver.tick(shouldKeepTicking);
++                } catch (ReportedException e) {
++                    if (!(e.getCause() instanceof me.LIMPIX31.paperutils.SuppressedThrowable)) {
++                        throw e.getCause();
++                    }
++                    MinecraftServer.LOGGER.warn("Prevented crash while ticking world: " + e.getCause());
++                } catch (me.LIMPIX31.paperutils.SuppressedThrowable e) {
++                    MinecraftServer.LOGGER.warn("Prevented crash while ticking world: " + e.getCause());
++                }
++
+                 // Paper start
+                 for (final io.papermc.paper.chunk.SingleThreadChunkRegionManager regionManager : worldserver.getChunkSource().chunkMap.regionManagers) {
+                     regionManager.recalculateRegions();
+diff --git a/src/main/java/net/minecraft/world/level/Level.java b/src/main/java/net/minecraft/world/level/Level.java
+index 7d54c79f46f99f5500e9cb1f486037cafb27ee3a..f32fa397b366e9470fa8411b0b516c3a6a79f978 100644
+--- a/src/main/java/net/minecraft/world/level/Level.java
++++ b/src/main/java/net/minecraft/world/level/Level.java
+@@ -688,6 +688,12 @@ public abstract class Level implements LevelAccessor, AutoCloseable {
+                         this.notifyAndUpdatePhysics(pos, chunk, iblockdata1, state, iblockdata2, flags, maxUpdateDepth);
+                     } catch (StackOverflowError ex) {
+                         Level.lastPhysicsProblem = new BlockPos(pos);
++                    } catch (Throwable throwable) {
++                        if (throwable instanceof me.LIMPIX31.paperutils.SuppressedThrowable) {
++                            throw new me.LIMPIX31.paperutils.SuppressedThrowable("Update suppression");
++                        } else {
++                            throw throwable;
++                        }
+                     }
+                     // Spigot end
+                 }
