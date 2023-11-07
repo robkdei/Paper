@@ -1,0 +1,96 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Rob Hayes <rob@kdei.co.uk>
+Date: Tue, 7 Nov 2023 16:59:46 +0000
+Subject: [PATCH] Remove book limit
+
+
+diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index ab58827001b3b42e44d7f701c390480fed1fa1f1..b4d3d1f95e2e671ea18e88dceb2a4197c6551f1e 100644
+--- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -1233,45 +1233,6 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+ 
+     @Override
+     public void handleEditBook(ServerboundEditBookPacket packet) {
+-        // Paper start
+-        if (!this.cserver.isPrimaryThread()) {
+-            List<String> pageList = packet.getPages();
+-            long byteTotal = 0;
+-            int maxBookPageSize = io.papermc.paper.configuration.GlobalConfiguration.get().itemValidation.bookSize.pageMax;
+-            double multiplier = Math.max(0.3D, Math.min(1D, io.papermc.paper.configuration.GlobalConfiguration.get().itemValidation.bookSize.totalMultiplier));
+-            long byteAllowed = maxBookPageSize;
+-            for (String testString : pageList) {
+-                int byteLength = testString.getBytes(java.nio.charset.StandardCharsets.UTF_8).length;
+-                if (byteLength > 256 * 4) {
+-                    ServerGamePacketListenerImpl.LOGGER.warn(this.player.getScoreboardName() + " tried to send a book with with a page too large!");
+-                    server.scheduleOnMain(() -> this.disconnect("Book too large!", org.bukkit.event.player.PlayerKickEvent.Cause.ILLEGAL_ACTION)); // Paper - kick event cause
+-                    return;
+-                }
+-                byteTotal += byteLength;
+-                int length = testString.length();
+-                int multibytes = 0;
+-                if (byteLength != length) {
+-                    for (char c : testString.toCharArray()) {
+-                        if (c > 127) {
+-                            multibytes++;
+-                        }
+-                    }
+-                }
+-                byteAllowed += (maxBookPageSize * Math.min(1, Math.max(0.1D, (double) length / 255D))) * multiplier;
+-
+-                if (multibytes > 1) {
+-                    // penalize MB
+-                    byteAllowed -= multibytes;
+-                }
+-            }
+-
+-            if (byteTotal > byteAllowed) {
+-                ServerGamePacketListenerImpl.LOGGER.warn(this.player.getScoreboardName() + " tried to send too large of a book. Book Size: " + byteTotal + " - Allowed:  "+ byteAllowed + " - Pages: " + pageList.size());
+-                server.scheduleOnMain(() -> this.disconnect("Book too large!", org.bukkit.event.player.PlayerKickEvent.Cause.ILLEGAL_ACTION)); // Paper - kick event cause
+-                return;
+-            }
+-        }
+-        // Paper end
+         // CraftBukkit start
+         if (this.lastBookTick + 20 > MinecraftServer.currentTick) {
+             server.scheduleOnMain(() -> this.disconnect("Book edited too quickly!", org.bukkit.event.player.PlayerKickEvent.Cause.ILLEGAL_ACTION)); // Paper - kick event cause // Paper - Also ensure this is called on main
+diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaBook.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaBook.java
+index 88c899e323eb554febe191ac7df678bbdfde08dc..60672541280ff9e35081e22d75e41691cc67cf55 100644
+--- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaBook.java
++++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaBook.java
+@@ -436,8 +436,6 @@ public class CraftMetaBook extends CraftMetaItem implements BookMeta {
+     String validatePage(String page) {
+         if (page == null) {
+             page = "";
+-        } else if (page.length() > CraftMetaBook.MAX_PAGE_LENGTH) {
+-            page = page.substring(0, MAX_PAGE_LENGTH);
+         }
+         return page;
+     }
+diff --git a/src/main/java/org/bukkit/craftbukkit/util/CraftChatMessage.java b/src/main/java/org/bukkit/craftbukkit/util/CraftChatMessage.java
+index 0f70be614f8f5350ad558d0ae645cdf0027e1e76..8a9640371594f16e79446eb9370333745775a7d4 100644
+--- a/src/main/java/org/bukkit/craftbukkit/util/CraftChatMessage.java
++++ b/src/main/java/org/bukkit/craftbukkit/util/CraftChatMessage.java
+@@ -278,7 +278,6 @@ public final class CraftChatMessage {
+             return message;
+         } else {
+             // Else we interpret the input as legacy text:
+-            message = CraftChatMessage.trimMessage(message, maxLength);
+             return CraftChatMessage.fromStringToJSON(message, keepNewlines);
+         }
+     }
+diff --git a/src/main/java/org/spigotmc/ValidateUtils.java b/src/main/java/org/spigotmc/ValidateUtils.java
+index 58a9534816c7b8a86cc6a620bbc1fcda86444d1a..3f8db54a1e1664cd9178f64b656534c2406a6025 100644
+--- a/src/main/java/org/spigotmc/ValidateUtils.java
++++ b/src/main/java/org/spigotmc/ValidateUtils.java
+@@ -5,10 +5,6 @@ public class ValidateUtils
+ 
+     public static String limit(String str, int limit)
+     {
+-        if ( str.length() > limit )
+-        {
+-            return str.substring( 0, limit );
+-        }
+         return str;
+     }
+ }
