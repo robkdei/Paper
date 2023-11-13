@@ -1,0 +1,130 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Rob Hayes <rob@kdei.co.uk>
+Date: Mon, 13 Nov 2023 18:19:02 +0000
+Subject: [PATCH] Vanilla RNG
+
+src/main/java/net/minecraft/world/entity/Entity.java
+
+diff --git a/src/main/java/net/minecraft/world/entity/Entity.java b/src/main/java/net/minecraft/world/entity/Entity.java
+index e8485fb900b25e911a858678a833852731cb2ace..a70a59729c81c1cfc365905a9834df2444a80e5a 100644
+--- a/src/main/java/net/minecraft/world/entity/Entity.java
++++ b/src/main/java/net/minecraft/world/entity/Entity.java
+@@ -157,6 +157,8 @@ import org.bukkit.plugin.PluginManager;
+ 
+ public abstract class Entity implements Nameable, EntityAccess, CommandSource {
+ 
++    public static RandomSource SHARED_RANDOM = RandomSource.create();
++
+     // CraftBukkit start
+     private static final int CURRENT_LEVEL = 2;
+     public boolean preserveMotion = true; // Paper - keep initial motion on first setPositionRotation
+@@ -164,78 +166,6 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource {
+         return tag.contains("Bukkit.updateLevel") && tag.getInt("Bukkit.updateLevel") >= level;
+     }
+ 
+-    // Paper start
+-    public static RandomSource SHARED_RANDOM = new RandomRandomSource();
+-    private static final class RandomRandomSource extends java.util.Random implements net.minecraft.world.level.levelgen.BitRandomSource {
+-        private boolean locked = false;
+-
+-        @Override
+-        public synchronized void setSeed(long seed) {
+-            if (locked) {
+-                LOGGER.error("Ignoring setSeed on Entity.SHARED_RANDOM", new Throwable());
+-            } else {
+-                super.setSeed(seed);
+-                locked = true;
+-            }
+-        }
+-
+-        @Override
+-        public RandomSource fork() {
+-            return new net.minecraft.world.level.levelgen.LegacyRandomSource(this.nextLong());
+-        }
+-
+-        @Override
+-        public net.minecraft.world.level.levelgen.PositionalRandomFactory forkPositional() {
+-            return new net.minecraft.world.level.levelgen.LegacyRandomSource.LegacyPositionalRandomFactory(this.nextLong());
+-        }
+-
+-        // these below are added to fix reobf issues that I don't wanna deal with right now
+-        @Override
+-        public int next(int bits) {
+-            return super.next(bits);
+-        }
+-
+-        @Override
+-        public int nextInt(int origin, int bound) {
+-            return net.minecraft.world.level.levelgen.BitRandomSource.super.nextInt(origin, bound);
+-        }
+-
+-        @Override
+-        public long nextLong() {
+-            return net.minecraft.world.level.levelgen.BitRandomSource.super.nextLong();
+-        }
+-
+-        @Override
+-        public int nextInt() {
+-            return net.minecraft.world.level.levelgen.BitRandomSource.super.nextInt();
+-        }
+-
+-        @Override
+-        public int nextInt(int bound) {
+-            return net.minecraft.world.level.levelgen.BitRandomSource.super.nextInt(bound);
+-        }
+-
+-        @Override
+-        public boolean nextBoolean() {
+-            return net.minecraft.world.level.levelgen.BitRandomSource.super.nextBoolean();
+-        }
+-
+-        @Override
+-        public float nextFloat() {
+-            return net.minecraft.world.level.levelgen.BitRandomSource.super.nextFloat();
+-        }
+-
+-        @Override
+-        public double nextDouble() {
+-            return net.minecraft.world.level.levelgen.BitRandomSource.super.nextDouble();
+-        }
+-
+-        @Override
+-        public double nextGaussian() {
+-            return super.nextGaussian();
+-        }
+-    }
+-    // Paper end
+     public org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason spawnReason; // Paper
+ 
+     public com.destroystokyo.paper.loottable.PaperLootableInventoryData lootableData; // Paper
+@@ -569,7 +499,7 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource {
+         this.bb = Entity.INITIAL_AABB;
+         this.stuckSpeedMultiplier = Vec3.ZERO;
+         this.nextStep = 1.0F;
+-        this.random = SHARED_RANDOM; // Paper
++        this.random = SHARED_RANDOM;
+         this.remainingFireTicks = -this.getFireImmuneTicks();
+         this.fluidHeight = new Object2DoubleArrayMap(2);
+         this.fluidOnEyes = new HashSet();
+@@ -3628,7 +3558,7 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource {
+                 if (level.paperConfig().environment.portalSearchVanillaDimensionScaling && flag2) { // == THE_NETHER
+                     portalSearchRadius = (int) (portalSearchRadius / destination.dimensionType().coordinateScale());
+                 }
+-                // Paper end
++                // Paper endk
+                 CraftPortalEvent event = this.callPortalEvent(this, destination, new PositionImpl(blockposition.getX(), blockposition.getY(), blockposition.getZ()), PlayerTeleportEvent.TeleportCause.NETHER_PORTAL, portalSearchRadius, destination.paperConfig().environment.portalCreateRadius); // Paper start - configurable portal radius
+                 if (event == null) {
+                     return null;
+diff --git a/src/main/java/net/minecraft/world/entity/animal/Squid.java b/src/main/java/net/minecraft/world/entity/animal/Squid.java
+index f60c4cd0543fd5d50fa7e2c1a9e8381227adb540..891d8b4c8cb73d5e310970066831ab3e2af14e91 100644
+--- a/src/main/java/net/minecraft/world/entity/animal/Squid.java
++++ b/src/main/java/net/minecraft/world/entity/animal/Squid.java
+@@ -44,7 +44,7 @@ public class Squid extends WaterAnimal {
+ 
+     public Squid(EntityType<? extends Squid> type, Level world) {
+         super(type, world);
+-        //this.random.setSeed((long)this.getId()); // Paper - we set the random to shared, do not clobber the seed
++        this.random.setSeed((long)this.getId());
+         this.tentacleSpeed = 1.0F / (this.random.nextFloat() + 1.0F) * 0.2F;
+     }
+ 
